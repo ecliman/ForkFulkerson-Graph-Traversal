@@ -1,0 +1,166 @@
+import java.io.*;
+import java.util.*;
+
+
+
+
+public class FordFulkerson {
+
+	
+	public static ArrayList<Integer> pathDFS(Integer source, Integer destination, WGraph graph){
+		ArrayList<Integer> Stack = new ArrayList<Integer>();
+		int stackTop = 0; //Keep track of top of stack for ArrayList Stack
+		
+		 
+		ArrayList<Edge> edges = graph.getEdges();
+		//Keep track of node visits
+		boolean visited[] = new boolean[graph.getNbNodes()];
+		// fill array with falses initially
+		Arrays.fill(visited,false);
+		
+		//Stack source, the beginning of DFS. 
+		Stack.add( Integer.valueOf(source) );
+		
+		//Go deep into neighbours of source
+		while(Stack.size() != 0) {
+
+			int curr = Stack.get(stackTop);
+			visited[curr] = true;
+			
+			//If the current node is the destination, then return the path taken (Stack).
+			if(curr == Integer.valueOf(destination)) {
+				return Stack;
+			}
+			
+			//Iterate through all edges until finding an edge that belongs to curr, and points to an unvisited node.
+			for(Edge e : edges) {
+				if(e.nodes[0] == curr && e.weight != 0 && visited[e.nodes[1]] == false ) {
+					//An unvisited neighbour was found. Add the node to the stack and break to go deep into it's neighbours.
+					Stack.add(e.nodes[1]);
+					stackTop ++; 
+					break;
+				}
+			}
+			
+			//Reaching the end of above for loop means that all neighbouring nodes have already been explored. Pop curr.
+			if(curr == Stack.get(stackTop)) {
+				Stack.remove(stackTop);
+				stackTop --; //Decrease top of stack index to reflect pop. 
+			}
+	
+
+		}
+		
+		return Stack;
+	}
+	
+
+	
+	
+	public static void fordfulkerson(Integer source, Integer destination, WGraph graph, String filePath){
+		String answer="";
+		String myMcGillID = "260686400"; //Please initialize this variable with your McGill ID
+		int maxFlow = 0;
+	
+		//Create residual graph and fill it with capacities (rep'd as weight) from WGraph
+		WGraph residual = new WGraph(graph);
+		
+		//For each edge, create backwards edges in the residual graph.
+		//Initialize with 0 capacity
+		for(Edge e : graph.getEdges()) {
+			try {
+				residual.addEdge(new Edge(e.nodes[1], e.nodes[0], 0));
+			}catch(RuntimeException ex) {
+				
+			}
+		}
+		
+		//Use original graph to store flows
+		ArrayList<Edge> flows = graph.getEdges();
+		for(Edge e : flows) {
+			e.weight = 0; 
+		}
+		
+		while(true) {
+//			System.out.println("=====================");
+			ArrayList<Integer> path = pathDFS(source, destination, residual);
+
+			if(path.size() == 0) {
+				break; //Stop looping if there is no path from source to destination
+			}
+			
+			//Find the bottleneck along path
+			int bottleneck = Integer.MAX_VALUE; 
+			for(int i = 0; i < path.size() - 1; i ++) {
+				Edge c = residual.getEdge(path.get(i), path.get(i+1) );
+				if( (c.weight) < bottleneck ) {
+					bottleneck = c.weight;
+				}
+			}
+			
+//			System.out.println("Bottleneck: "+bottleneck);
+			
+			//Augment the path
+			for(int i = 0; i < path.size() -1; i ++) {
+				//Change flow with bottleneck
+				Edge f = graph.getEdge(path.get(i), path.get(i+1));
+				
+				//Update flows in original graph
+				if(f != null) { // This edge is found in original graph, add bottleneck 
+					f.weight += bottleneck;
+				}else { //Edge is not found, therefore this must be a backwards edge, subtract edge
+					graph.getEdge(path.get(i+1), path.get(i)).weight -= bottleneck;
+				}
+				
+				//Update residual capacities
+				residual.getEdge(path.get(i), path.get(i+1)).weight -= bottleneck;
+				residual.getEdge(path.get(i+1), path.get(i)).weight += bottleneck;
+			}
+			
+			
+			
+			//Increase max flow
+			maxFlow += bottleneck;
+			
+		}
+		
+		answer += maxFlow + "\n" + graph.toString();	
+		writeAnswer(filePath+myMcGillID+".txt",answer);
+		System.out.println(answer);
+	}
+	
+	
+	public static void writeAnswer(String path, String line){
+		BufferedReader br = null;
+		File file = new File(path);
+		// if file doesnt exists, then create it
+		
+		try {
+		if (!file.exists()) {
+			file.createNewFile();
+		}
+		FileWriter fw = new FileWriter(file.getAbsoluteFile(),true);
+		BufferedWriter bw = new BufferedWriter(fw);
+		bw.write(line+"\n");	
+		bw.close();
+		} catch (IOException e) {
+			e.printStackTrace();
+		} finally {
+			try {
+				if (br != null)br.close();
+			} catch (IOException ex) {
+				ex.printStackTrace();
+			}
+		}
+	}
+	
+	 public static void main(String[] args){
+		 
+		 String file = args[0];
+		 File f = new File(file);
+		 WGraph g = new WGraph(file);
+		 
+		 
+		 fordfulkerson(g.getSource(),g.getDestination(),g,f.getAbsolutePath().replace(".txt",""));
+	 }
+}
